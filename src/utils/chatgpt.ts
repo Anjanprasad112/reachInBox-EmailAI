@@ -1,7 +1,5 @@
-// /pages/api/utils/chatgpt.ts
 
 import OpenAI from 'openai';
-
 interface OpenAIResponse {
     choices: { text: string }[];
 }

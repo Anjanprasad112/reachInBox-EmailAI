@@ -1,11 +1,12 @@
-// /pages/api/emails.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import axios from 'axios';
-import { classifyEmail } from '@/utils/classifier'; // Function to classify emails
-import { generateResponse } from '@/utils/chatgpt'; // Function to generate responses using ChatGPT
+import { classifyEmail } from '@/utils/classifier'; 
+import { generateResponse } from '@/utils/chatgpt'; 
 import { sendEmail } from '@/service/sendEmail';
+
+
+const processedEmails: Record<string, boolean> = {};
 
 export async function GET(req: NextRequest) {
     try {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
         const userId = 'me';
         const listUrl = `https://gmail.googleapis.com/gmail/v1/users/${userId}/messages?q=is:unread`;
 
-        // Fetch list of unread messages
+
         const listResponse = await axios.get(listUrl, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
@@ -28,12 +29,11 @@ export async function GET(req: NextRequest) {
         });
 
         const messages = listResponse.data.messages || [];
-        // console.log('Fetched message IDs:', messages);
 
-        // Limit to top 10 messages
+
         const topMessages = messages.slice(0, 10);
 
-        // Fetch details for each message (limited to 10)
+
         const messageDetails = await Promise.all(topMessages.map(async (message: any) => {
             const detailUrl = `https://gmail.googleapis.com/gmail/v1/users/${userId}/messages/${message.id}`;
             const detailResponse = await axios.get(detailUrl, {
@@ -52,20 +52,27 @@ export async function GET(req: NextRequest) {
                 return '';
             }).join('');
 
-            // Extract recipient email from the message
+
             const recipientHeader = detailResponse.data.payload.headers.find((header: any) => header.name === 'To');
             const recipientEmail = recipientHeader?.value;
-            // Classify email
+            // console.log("this is the recipient email : ",recipientEmail);
+
+
             const classification = classifyEmail(subject, content, labelIds);
 
-            // Generate response for interested or more information emails
-            let response = '';
-            if (classification === 'interested' || classification === 'more information') {
-                response = await generateResponse(classification);
+
+            if (!processedEmails[message.id] && (classification === 'interested' || classification === 'more information')) {
+  
+                const response = await generateResponse(classification);
+                
+
                 await sendEmail(recipientEmail, `Automatic Response for: ${subject}`, response);
+                
+     
+                processedEmails[message.id] = true;
             }
 
-            return { id: message.id, snippet, subject, labelIds, content, classification, response };
+            return { id: message.id, snippet, subject, labelIds, content, classification };
         }));
 
         console.log('Fetched message details:', messageDetails);

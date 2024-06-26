@@ -11,7 +11,7 @@ const Page = () => {
 
   const fetchEmails = async () => {
     setLoading(true);
-    setError(null); // Clear previous errors
+    setError(null); 
     try {
       const response = await axios.get('/api/emails');
       setEmails(response.data.messages || []);
@@ -26,10 +26,10 @@ const Page = () => {
   useEffect(() => {
     fetchEmails();
 
-    // Set interval for automatic refresh every 30 seconds
-    const intervalId = setInterval(fetchEmails, 3000);
 
-    // Cleanup function to clear interval on component unmount
+    const intervalId = setInterval(fetchEmails, 5000);
+
+
     return () => clearInterval(intervalId);
   }, []); 
 
